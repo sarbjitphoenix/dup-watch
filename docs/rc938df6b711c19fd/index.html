@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Doubled Subscriptions</title>
+<meta name="robots" content="noindex,nofollow">
+<style>
+  :root {
+    --ground: #f6f8f9; --surface: #ffffff; --ink: #1c2530; --muted: #5b6b7a;
+    --line: #dde4e9; --accent: #0e7c86; --accent-soft: #e3f1f2;
+    --good: #1f7a43; --good-soft: #e4f2e9; --gone: #66707c; --gone-soft: #edf0f2;
+    --warn: #9a6700; --warn-soft: #f7efdc; --risk: #a4262c; --risk-soft: #f9e9ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #10161c; --surface: #182029; --ink: #e4eaf0; --muted: #93a2b1;
+      --line: #2a3540; --accent: #46b8c2; --accent-soft: #12333a;
+      --good: #52b877; --good-soft: #16321f; --gone: #8b96a3; --gone-soft: #232b34;
+      --warn: #d9a94e; --warn-soft: #33290f; --risk: #e3737a; --risk-soft: #3a1e20;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #10161c; --surface: #182029; --ink: #e4eaf0; --muted: #93a2b1;
+    --line: #2a3540; --accent: #46b8c2; --accent-soft: #12333a;
+    --good: #52b877; --good-soft: #16321f; --gone: #8b96a3; --gone-soft: #232b34;
+    --warn: #d9a94e; --warn-soft: #33290f; --risk: #e3737a; --risk-soft: #3a1e20;
+  }
+  body { background: var(--ground); color: var(--ink);
+    font-family: "Avenir Next", "Seravek", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.55; margin: 0; padding: 3rem 1.25rem 4rem; }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 2rem; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 0.35rem; text-wrap: balance; }
+  .asof { color: var(--muted); margin: 0 0 2rem; font-size: 0.95rem; }
+  .asof strong { color: var(--ink); font-weight: 600; }
+  .stats { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 2.5rem; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 0.7rem 1.1rem; min-width: 8.5rem; }
+  .stat b { display: block; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--muted); font-size: 0.8rem; }
+  .client { margin: 0 0 2.5rem; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.09em; font-size: 0.72rem;
+    color: var(--accent); font-weight: 600; margin: 0 0 0.2rem; }
+  h2 { font-size: 1.3rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .scope { color: var(--muted); font-size: 0.9rem; margin: 0 0 1rem; }
+  .scope code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85em; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.1rem 1.25rem 1.25rem; margin: 0 0 1rem; }
+  .card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem; margin: 0 0 0.75rem; }
+  .card-head a { color: var(--accent); font-weight: 600; text-decoration: none; font-variant-numeric: tabular-nums; }
+  .card-head a:hover, .card-head a:focus-visible { text-decoration: underline; outline: none; }
+  .card-head .note { color: var(--muted); font-size: 0.9rem; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.72rem;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    padding: 0.35rem 0.9rem 0.35rem 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 0.5rem 0.9rem 0.5rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num, td.mono, span.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.84rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill { display: inline-block; border-radius: 999px; padding: 0.1rem 0.6rem;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.03em; white-space: nowrap; }
+  .pill.active { background: var(--good-soft); color: var(--good); }
+  .pill.cancelled { background: var(--gone-soft); color: var(--gone); }
+  .pill.paused { background: var(--warn-soft); color: var(--warn); }
+  .flag { border-left: 3px solid var(--risk); background: var(--risk-soft);
+    border-radius: 0 8px 8px 0; padding: 0.75rem 1rem; margin: 0.9rem 0 0; font-size: 0.92rem; }
+  .flag b { font-weight: 600; }
+  .method { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1.25rem;
+    color: var(--muted); font-size: 0.88rem; max-width: 65ch; }
+  .method code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.85em; }
+</style>
+
+</head>
+<body>
+<main>
+  <h1>Doubled Subscriptions</h1>
+  <p class="asof">Every customer holding more than one subscription, any status, all clients except 77 &middot; production read replica &middot; refreshed every 10 minutes &middot; as of <strong>2026-08-18 22:47 UTC</strong></p>
+
+  <div class="stats">
+    <div class="stat"><b>20</b><span>doubled customers</span></div>
+    <div class="stat"><b>8</b><span>clients affected</span></div>
+    <div class="stat"><b>30</b><span>subscriptions active</span></div>
+    <div class="stat"><b>22</b><span>subs started today (UTC)</span></div>
+  </div>
+
+  <section class="client">
+    <p class="eyebrow">Client 104</p>
+    <h2>Epic eCommerce LLC</h2>
+    <p class="scope">Subscription scope: one per store (<code>STORE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/1784691/">Customer 1784691</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shop.shopatemporium.com <span class="mono">(375)</span></td>
+              <td>VIP Recurring <span class="mono">681</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2025-05-01 &rarr; cancelled 2025-08-04</td>
+              <td class="num">6984969</td>
+            </tr>
+            <tr>
+              <td>shop.shopatpulse.com <span class="mono">(950)</span></td>
+              <td>VIP Initial <span class="mono">2318</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:50</td>
+              <td class="num">30858671</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 205</p>
+    <h2>Bellezza LLC</h2>
+    <p class="scope">Subscription scope: one per store (<code>STORE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/3898293/">Customer 3898293</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>truehealthic.com <span class="mono">(681)</span></td>
+              <td>VIP Recurring <span class="mono">1461</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2026-03-02 &rarr; cancelled 2026-03-23</td>
+              <td class="num">19347517</td>
+            </tr>
+            <tr>
+              <td>get.vitalbloo.com <span class="mono">(1626)</span></td>
+              <td>VIP Initial <span class="mono">5513</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2026-08-18 &rarr; cancelled 2026-08-18</td>
+              <td class="num">30862316</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 207</p>
+    <h2>Harris Performance Media Group LLC</h2>
+    <p class="scope">Subscription scope: one per store (<code>STORE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/2765523/">Customer 2765523</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shopnovalift.com <span class="mono">(685)</span></td>
+              <td>VIP Recurring <span class="mono">1455</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2025-11-06 &rarr; cancelled 2025-12-26</td>
+              <td class="num">13109907</td>
+            </tr>
+            <tr>
+              <td>mynovapaw.com <span class="mono">(999)</span></td>
+              <td>VIP Initial <span class="mono">2353</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:52</td>
+              <td class="num">30863787</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 275</p>
+    <h2>JustMenacing LLC</h2>
+    <p class="scope">Subscription scope: one per billing type (<code>BILLING_TYPE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/2982146/">Customer 2982146</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>justmenacing.com <span class="mono">(939)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2236</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2025-11-30 &rarr; cancelled 2026-04-27</td>
+              <td class="num">14119845</td>
+            </tr>
+            <tr>
+              <td>stanced.co <span class="mono">(940)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2232</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:18</td>
+              <td class="num">30856057</td>
+            </tr>
+            <tr>
+              <td>revvedsupply.com <span class="mono">(942)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2226</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:20</td>
+              <td class="num">30856287</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/3023544/">Customer 3023544</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>stanced.co <span class="mono">(940)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2233</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2025-12-03 00:12</td>
+              <td class="num">14288418</td>
+            </tr>
+            <tr>
+              <td>justmenacing.com <span class="mono">(939)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2235</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:23</td>
+              <td class="num">30856506</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/3038836/">Customer 3038836</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>restoridesgarage.com <span class="mono">(947)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2218</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2025-12-04 &rarr; cancelled 2026-03-02</td>
+              <td class="num">14350103</td>
+            </tr>
+            <tr>
+              <td>freedomforgegarage.com <span class="mono">(944)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2220</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:40</td>
+              <td class="num">30862879</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/3080184/">Customer 3080184</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>thestealthsociety.com <span class="mono">(943)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2224</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2025-12-06 17:19</td>
+              <td class="num">14525337</td>
+            </tr>
+            <tr>
+              <td>revvedsupply.com <span class="mono">(942)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2226</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:52</td>
+              <td class="num">30858929</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/3080436/">Customer 3080436</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>justmenacing.com <span class="mono">(939)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2236</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2025-12-06 &rarr; cancelled 2026-03-08</td>
+              <td class="num">14526091</td>
+            </tr>
+            <tr>
+              <td>thestealthsociety.com <span class="mono">(943)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2223</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:18</td>
+              <td class="num">30856074</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/4207380/">Customer 4207380</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>justmenacing.com <span class="mono">(939)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2236</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2026-04-03 &rarr; cancelled 2026-05-10</td>
+              <td class="num">21107988</td>
+            </tr>
+            <tr>
+              <td>thestradasociety.com <span class="mono">(941)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2229</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:25</td>
+              <td class="num">30861516</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/4329642/">Customer 4329642</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>revvedsupply.com <span class="mono">(942)</span></td>
+              <td>VIP Recurring <span class="mono">2196</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-05-18 01:33</td>
+              <td class="num">23895539</td>
+            </tr>
+            <tr>
+              <td>justmenacing.com <span class="mono">(939)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2235</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:37</td>
+              <td class="num">30862573</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/4413434/">Customer 4413434</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>stanced.co <span class="mono">(940)</span></td>
+              <td>VIP Recurring <span class="mono">2199</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2026-04-22 &rarr; cancelled 2026-06-28</td>
+              <td class="num">22250934</td>
+            </tr>
+            <tr>
+              <td>restoridesgarage.com <span class="mono">(947)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2217</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:04</td>
+              <td class="num">30859862</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/4616996/">Customer 4616996</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>stanced.co <span class="mono">(940)</span></td>
+              <td>VIP Recurring - VIP 10X BONUS (Monthly Membership) <span class="mono">2233</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-05-14 17:24</td>
+              <td class="num">23631993</td>
+            </tr>
+            <tr>
+              <td>restoridesgarage.com <span class="mono">(947)</span></td>
+              <td>VIP Initial - VIP 10X BONUS (Initial Membership) <span class="mono">2217</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:33</td>
+              <td class="num">30862130</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 556</p>
+    <h2>TJ Management LLC</h2>
+    <p class="scope">Subscription scope: one per billing type (<code>BILLING_TYPE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5069874/">Customer 5069874</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>getlirae.com <span class="mono">(1706)</span></td>
+              <td>Ceylon Cinnamon 7200mg Equivalent with MCT Oil - 8935908311278 - VIP Initial (Buy 1) <span class="mono">6099</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-06-14 00:38</td>
+              <td class="num">25859812</td>
+            </tr>
+            <tr>
+              <td>getlirae.com <span class="mono">(1706)</span></td>
+              <td>Ceylon Cinnamon 7200mg Equivalent with MCT Oil Alternative checkouts - VIP Initial (Buy One) <span class="mono">10389</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 19:50</td>
+              <td class="num">30854176</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="flag"><b>Double-billing risk.</b> This customer holds more than one live subscription in the same store &mdash; unless one side is cancelled, both will charge.</p>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 642</p>
+    <h2>Taplabs LLC</h2>
+    <p class="scope">Subscription scope: one per store (<code>STORE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5804119/">Customer 5804119</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shophalvora.com <span class="mono">(1749)</span></td>
+              <td>VIP Initial <span class="mono">6521</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-03 20:54</td>
+              <td class="num">29577549</td>
+            </tr>
+            <tr>
+              <td>shopatalura.com <span class="mono">(1686)</span></td>
+              <td>VIP Initial <span class="mono">5866</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:46</td>
+              <td class="num">30863287</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 781</p>
+    <h2>Northwell Distribution LLC</h2>
+    <p class="scope">Subscription scope: one per store (<code>STORE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5700563/">Customer 5700563</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shop.northwestgears.com <span class="mono">(2025)</span></td>
+              <td>Direct Sale <span class="mono">10338</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2026-07-29 &rarr; cancelled 2026-07-29</td>
+              <td class="num">29125133</td>
+            </tr>
+            <tr>
+              <td>store.northwestgears.com <span class="mono">(2209)</span></td>
+              <td>VIP Intial <span class="mono">11847</span></td>
+              <td><span class="pill cancelled">Cancelled</span></td>
+              <td class="num">2026-08-18 &rarr; cancelled 2026-08-18</td>
+              <td class="num">30866473</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="client">
+    <p class="eyebrow">Client 814</p>
+    <h2>PC ABUNDANCE LLC</h2>
+    <p class="scope">Subscription scope: one per store (<code>STORE</code>)</p>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5859108/">Customer 5859108</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shophumva.com <span class="mono">(2014)</span></td>
+              <td>VIP Initial <span class="mono">10262</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-06 20:02</td>
+              <td class="num">29822661</td>
+            </tr>
+            <tr>
+              <td>calyva.shop <span class="mono">(2142)</span></td>
+              <td>VIP Initial <span class="mono">11294</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 22:18</td>
+              <td class="num">30865608</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5916002/">Customer 5916002</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shophumva.com <span class="mono">(2014)</span></td>
+              <td>VIP Initial <span class="mono">10262</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-09 22:16</td>
+              <td class="num">30113054</td>
+            </tr>
+            <tr>
+              <td>calyva.shop <span class="mono">(2142)</span></td>
+              <td>VIP Initial <span class="mono">11294</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 21:25</td>
+              <td class="num">30861510</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5940419/">Customer 5940419</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shophumva.com <span class="mono">(2014)</span></td>
+              <td>VIP Initial <span class="mono">10262</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-11 13:38</td>
+              <td class="num">30229704</td>
+            </tr>
+            <tr>
+              <td>calyva.shop <span class="mono">(2142)</span></td>
+              <td>VIP Initial <span class="mono">11294</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:12</td>
+              <td class="num">30855582</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/5947808/">Customer 5947808</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shophumva.com <span class="mono">(2014)</span></td>
+              <td>VIP Initial <span class="mono">10262</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-11 21:40</td>
+              <td class="num">30269394</td>
+            </tr>
+            <tr>
+              <td>calyva.shop <span class="mono">(2142)</span></td>
+              <td>VIP Initial <span class="mono">11294</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 22:18</td>
+              <td class="num">30865555</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <a href="https://app1.phoenixcrm.io/app/customers/6038986/">Customer 6038986</a>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Store</th><th>Billing type</th><th>Status</th><th>Started</th><th>Source order</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>shopmavyn.com <span class="mono">(2013)</span></td>
+              <td>VIP Initial <span class="mono">10256</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 09:40</td>
+              <td class="num">30806660</td>
+            </tr>
+            <tr>
+              <td>calyva.shop <span class="mono">(2142)</span></td>
+              <td>VIP Initial <span class="mono">11294</span></td>
+              <td><span class="pill active">Active</span></td>
+              <td class="num">2026-08-18 20:03</td>
+              <td class="num">30855031</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="method">
+    Method: customers grouped across all of their stores within a client, counting every subscription row regardless of status (active, paused, or cancelled). Client 77 is excluded because multiple subscriptions per customer are expected there. Data read from the production read-only replica (<code>customer_subscription</code> joined to clients, stores, and billing types); all times UTC. Same-store live doubles are flagged as double-billing risks. This page is regenerated from a fresh query every 10 minutes.
+  </p>
+</main>
+</body>
+
+</html>
