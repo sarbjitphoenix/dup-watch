@@ -51,13 +51,19 @@
   .cust a:hover, .cust a:focus-visible { text-decoration: underline; outline: none; }
   tfoot td { font-weight: 600; border-top: 2px solid var(--line); }
   .note { color: var(--muted); font-size: 0.85rem; max-width: 65ch; margin-top: 1.5rem; }
+  .h2sub { font-size: 1.15rem; font-weight: 600; margin: 2.25rem 0 0.6rem; }
+  ul.heavy { background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    margin: 0; padding: 0.9rem 1.25rem 0.9rem 2.4rem; }
+  ul.heavy li { padding: 0.15rem 0; }
+  ul.heavy a { color: var(--accent); font-weight: 600; text-decoration: none; font-variant-numeric: tabular-nums; }
+  ul.heavy a:hover, ul.heavy a:focus-visible { text-decoration: underline; outline: none; }
 </style>
 
 </head>
 <body>
 <main>
   <h1>Multi-Subscription Launch</h1>
-  <p class="sub">Deployed to production 18 Aug 2026 &middot; adoption as of 19 Aug 2026, 16:49 UTC</p>
+  <p class="sub">Deployed to production 18 Aug 2026 &middot; adoption as of 19 Aug 2026, 16:53 UTC</p>
 
   <p class="lede">Customers can now hold more than one subscription at the same time. The feature is enabled for all clients and all stores at the <strong>store level</strong> (one subscription per store, so a customer can subscribe in several stores of a client's network) and for four clients at the <strong>billing-type level</strong> (multiple subscriptions inside the same store across different billing types); additional clients will be enabled at the billing-type level once the list is finalized. Creation, cancellation, and the scope settings have been monitored in production since launch and are behaving as expected.</p>
 
@@ -254,6 +260,11 @@
       </tfoot>
     </table>
   </div>
+
+  <h2 class="h2sub">Customers with more than two subscriptions</h2>
+  <ul class="heavy">
+      <li><a href="https://app1.phoenixcrm.io/app/customers/2982146/">2982146</a> &middot; JustMenacing &middot; 3 subscriptions (2 active)</li>
+  </ul>
 
   <p class="note">Customer links open in the Phoenix CRM and require portal login with customer access. Data from the production read replica; the multi-subscription pilot client is excluded.</p>
 </main>
